@@ -1,0 +1,23 @@
+{
+  "name": "jsonpatch-observe",
+  "version": "0.0.2",
+  "description": "Observe objects recursively and generate JSON patches",
+  "keywords": ["jsonpatch", "observe"],
+  "homepage": "https://github.com/ken107/jsonpatch-observe",
+  "license": "MIT",
+  "author": "Hai Phan <hai.phan@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ken107/jsonpatch-observe"
+  },
+  "bugs": {
+    "url": "https://github.com/ken107/jsonpatch-observe/issues"
+  },
+  "files": [
+    "observe.js"
+  ],
+  "main": "./observe.js",
+  "engines": {
+    "node": ">=0.11.13"
+  }
+}
