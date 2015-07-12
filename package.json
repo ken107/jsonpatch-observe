@@ -1,6 +1,6 @@
 {
   "name": "jsonpatch-observe",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Observe objects recursively and generate JSON patches",
   "keywords": ["jsonpatch", "observe"],
   "homepage": "https://github.com/ken107/jsonpatch-observe",

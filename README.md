@@ -2,7 +2,7 @@ Requires Node 0.11.13 and above.
 
 This Node script sets up a deep observer on an object that listens for changes in object tree.  When changes are detected, the callback is called with the generated array of JSON patches ([RFC 6902](https://tools.ietf.org/html/rfc6902)).
 
-###Usage
+### Usage
 ```javascript
 var observe = require("jsonpatch-observe").observe;
 observe(myobj, onPatches);
@@ -15,7 +15,7 @@ observe(myobj, onPatches, "/path/to/myobj");
 ```
 
 
-###Splice
+### Splice
 The JSONPatch standard does not specify a "splice" op.  So array changes will be serialized into a series of "replace", "add", and "remove" operations.  This can be very inefficient for large number of inserted or removed elements, as they occur one by one on the client side.
 
 This script supports generating a __non-standard__ "splice" patch for array changes.  To enable this, call `observe` with a fourth parameter:
@@ -23,12 +23,14 @@ This script supports generating a __non-standard__ "splice" patch for array chan
 observe(myobj, onPatches, null, true);
 ```
 
-The "splice" patch has the following structure:
+The generated patch has the following structure:
 ```
 {
 	op: "splice",
-	path: PathToIndexInArray,
-	add: ArrayOfElementsAdded,
-	remove: NumberOfElementsRemoved
+	path: "/myarr/3",		//path to array index
+	remove: 2,				//# elements removed
+	add: ['a','b','c']		//elements added
 }
 ```
+
+I created a [fork](https://github.com/ken107/JSON-Patch) of Starcounter-Jack's JSONPatch library that supports this non-standard "splice" patch.

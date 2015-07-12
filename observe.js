@@ -43,6 +43,7 @@ function observe(obj, callback, path, canSplice) {
 							args.push(typeof obj == "object" && obj != null ? observe(obj, callback, path+'/'+(c.index+j), canSplice) : null);
 						}
 						childObservers.splice.apply(childObservers, args);
+						for (var j=c.index+c.addedCount; j<childObservers.length; j++) childObservers[j].setIndex(j);
 						break;
 				}
 			}
@@ -74,6 +75,9 @@ function observe(obj, callback, path, canSplice) {
 				active = false;
 				count--;
 			}
+		},
+		setIndex: function(index) {
+			path = path.substring(0, path.lastIndexOf("/")) + "/" + index;
 		}
 	};
 }
