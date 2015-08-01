@@ -10,6 +10,7 @@ var count = 0;
 function observe(obj, callback, path, canSplice) {
 	if (path == null) path = "";
 	var childObservers, active = true;
+	
 	if (obj instanceof Array) {
 		Array.observe(obj, onChange);
 		childObservers = [];
@@ -20,7 +21,19 @@ function observe(obj, callback, path, canSplice) {
 		childObservers = {};
 		for (var p in obj) if (typeof obj[p] == "object" && obj[p] != null) childObservers[p] = observe(obj[p], callback, path+'/'+p, canSplice);
 	}
+	
 	function onChange(changes) {
+		var tmp = [];
+		for (var i=0; i<changes.length; i++) {
+			var c = changes[i];
+			if (c.type == "add" || c.type == "update") {
+				if (Object.getOwnPropertyDescriptor(c.object, c.name).enumerable) tmp.push(c);
+			}
+			else tmp.push(c);
+		}
+		changes = tmp;
+		
+		if (changes.length)
 		try {
 			for (var i=0; i<changes.length; i++) {
 				var c = changes[i];
@@ -47,7 +60,31 @@ function observe(obj, callback, path, canSplice) {
 						break;
 				}
 			}
-			callback(toPatches(path, changes, canSplice));
+			
+			var patches = [];
+			for (var i=0; i<changes.length; i++) {
+				var c = changes[i];
+				switch (c.type) {
+					case "add":
+						patches.push({op: "add", path: path+"/"+c.name, value: c.object[c.name]});
+						break;
+					case "update":
+						patches.push({op: "replace", path: path+"/"+c.name, value: c.object[c.name]});
+						break;
+					case "delete":
+						patches.push({op: "remove", path: path+"/"+c.name});
+						break;
+					case "splice":
+						if (canSplice) patches.push({op: "splice", path: path+"/"+c.index, add: c.object.slice(c.index, c.index+c.addedCount), remove: c.removed.length});
+						else {
+							for (var j=0; j<Math.min(c.removed.length, c.addedCount); j++) patches.push({op: "replace", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
+							for (var j=c.removed.length; j<c.addedCount; j++) patches.push({op: "add", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
+							for (var j=c.removed.length-1; j>=c.addedCount; j--) patches.push({op: "remove", path: path+"/"+(c.index+j)});
+						}
+						break;
+				}
+			}
+			callback(patches);
 		}
 		catch (err) {
 			console.log(err.stack);
@@ -80,33 +117,6 @@ function observe(obj, callback, path, canSplice) {
 			path = path.substring(0, path.lastIndexOf("/")) + "/" + index;
 		}
 	};
-}
-
-function toPatches(path, changes, canSplice) {
-	var patches = [];
-	for (var i=0; i<changes.length; i++) {
-		var c = changes[i];
-		switch (c.type) {
-			case "add":
-				patches.push({op: "add", path: path+"/"+c.name, value: c.object[c.name]});
-				break;
-			case "update":
-				patches.push({op: "replace", path: path+"/"+c.name, value: c.object[c.name]});
-				break;
-			case "delete":
-				patches.push({op: "remove", path: path+"/"+c.name});
-				break;
-			case "splice":
-				if (canSplice) patches.push({op: "splice", path: path+"/"+c.index, add: c.object.slice(c.index, c.index+c.addedCount), remove: c.removed.length});
-				else {
-					for (var j=0; j<Math.min(c.removed.length, c.addedCount); j++) patches.push({op: "replace", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
-					for (var j=c.removed.length; j<c.addedCount; j++) patches.push({op: "add", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
-					for (var j=c.addedCount; j<c.removed.length; j++) patches.push({op: "remove", path: path+"/"+(c.index+c.addedCount)});
-				}
-				break;
-		}
-	}
-	return patches;
 }
 
 exports.observe = observe;

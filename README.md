@@ -1,30 +1,48 @@
-Requires Node 0.11.13 and above.
+This Node script:
+- Deep observes an object tree (using Object.observe)
+- Generate JSON Patches ([RFC 6902](https://tools.ietf.org/html/rfc6902))
+- Can optionally generate non-standard "splice" patch for performance
+- Requires Node 0.11.13 and above.
 
-This Node script sets up a deep observer on an object that listens for changes in object tree.  When changes are detected, the callback is called with the generated array of JSON patches ([RFC 6902](https://tools.ietf.org/html/rfc6902)).
 
 ### Usage
+Setup
 ```javascript
 var observe = require("jsonpatch-observe").observe;
-observe(myobj, onPatches);
 function onPatches(patchesArray) {...}
 ```
 
-You can specify a path for _myobj_:
+Observe changes to _myobj_:
 ```javascript
-observe(myobj, onPatches, "/path/to/myobj");
+var observer = observe(myobj, onPatches);
 ```
 
-
-### Splice
-The JSONPatch standard does not specify a "splice" op.  So array changes will be serialized into a series of "replace", "add", and "remove" operations.  This can be very inefficient for large number of inserted or removed elements, as they occur one by one on the client side.
-
-This script supports generating a __non-standard__ "splice" patch for array changes.  To enable this, call `observe` with a fourth parameter:
+Optionally specify a path for _myobj_ (this affects the _path_ of the generated patches):
 ```javascript
-observe(myobj, onPatches, null, true);
+var observer = observe(myobj, onPatches, "/path/to/myobj");
 ```
 
-The generated patch has the following structure:
+Enable generating the "splice" patch:
+```javascript
+var observer = observe(myobj, onPatches, null, true);
 ```
+
+Stop observing changes to _myobj_:
+```javascript
+observer.cancel();
+```
+
+Print some debug information:
+```javascript
+observer.print();
+```
+
+
+### Splice Patch
+The JSONPatch standard does not specify a "splice" op, so array changes will be serialized into a series of "replace", "add", and "remove" operations.  This can be inefficient when inserting/removing large number of elements, because they occur one by one on the client side.
+
+When enabled, this script will generate the following non-standard patch for array changes:
+```javascript
 {
 	op: "splice",
 	path: "/myarr/3",		//path to array index
@@ -33,4 +51,4 @@ The generated patch has the following structure:
 }
 ```
 
-I created a [fork](https://github.com/ken107/JSON-Patch) of Starcounter-Jack's JSONPatch library that supports this non-standard "splice" patch.
+I created a [fork](https://github.com/ken107/JSON-Patch) of Starcounter-Jack's JSONPatch library that is capable of applying this patch.
