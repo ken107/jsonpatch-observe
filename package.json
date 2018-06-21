@@ -2,7 +2,13 @@
   "name": "jsonpatch-observe",
   "version": "0.0.9",
   "description": "Observe objects recursively and generate JSON patches",
-  "keywords": ["jsonpatch", "observe"],
+  "keywords": [
+    "jsonpatch",
+    "observe",
+    "json-rpc",
+    "data-binding",
+    "firebase"
+  ],
   "homepage": "https://github.com/ken107/jsonpatch-observe",
   "license": "MIT",
   "author": "Hai Phan <hai.phan@gmail.com>",
@@ -16,8 +22,14 @@
   "files": [
     "observe.js"
   ],
+  "scripts": {
+    "test": "jest"
+  },
   "main": "./observe.js",
   "engines": {
     "node": ">=0.11.13"
+  },
+  "devDependencies": {
+    "jest": "^23.1.0"
   }
 }

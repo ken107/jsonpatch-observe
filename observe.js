@@ -5,119 +5,276 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var count = 0;
+"use strict";
+const assert = require("assert");
+const UNHANDLED = new Object();
 
-function observe(obj, callback, path, canSplice) {
-	if (path == null) path = "";
-	var childObservers, active = true;
-	
-	if (obj instanceof Array) {
-		Array.observe(obj, onChange);
-		childObservers = [];
-		for (var i=0; i<obj.length; i++) childObservers.push(typeof obj[i] == "object" && obj[i] != null ? observe(obj[i], callback, path+'/'+i, canSplice) : null);
-	}
-	else {
-		Object.observe(obj, onChange, ["add", "update", "delete"]);
-		childObservers = {};
-		for (var p in obj) if (typeof obj[p] == "object" && obj[p] != null) childObservers[p] = observe(obj[p], callback, path+'/'+p, canSplice);
-	}
-	
-	function onChange(changes) {
-		var tmp = [];
-		for (var i=0; i<changes.length; i++) {
-			var c = changes[i];
-			if (c.type == "add" || c.type == "update") {
-				if (Object.getOwnPropertyDescriptor(c.object, c.name).enumerable) tmp.push(c);
-			}
-			else tmp.push(c);
-		}
-		changes = tmp;
-		
-		if (changes.length)
-		try {
-			for (var i=0; i<changes.length; i++) {
-				var c = changes[i];
-				switch (c.type) {
-					case "add":
-						if (typeof c.object[c.name] == "object" && c.object[c.name] != null) childObservers[c.name] = observe(c.object[c.name], callback, path+'/'+c.name, canSplice);
-						break;
-					case "update":
-						if (childObservers[c.name]) childObservers[c.name].cancel(), delete childObservers[c.name];
-						if (typeof c.object[c.name] == "object" && c.object[c.name] != null) childObservers[c.name] = observe(c.object[c.name], callback, path+'/'+c.name, canSplice);
-						break;
-					case "delete":
-						if (childObservers[c.name]) childObservers[c.name].cancel(), delete childObservers[c.name];
-						break;
-					case "splice":
-						for (var j=0; j<c.removed.length; j++) if (childObservers[c.index+j]) childObservers[c.index+j].cancel();
-						var args = [c.index, c.removed.length];
-						for (var j=0; j<c.addedCount; j++) {
-							var obj = c.object[c.index+j];
-							args.push(typeof obj == "object" && obj != null ? observe(obj, callback, path+'/'+(c.index+j), canSplice) : null);
-						}
-						childObservers.splice.apply(childObservers, args);
-						for (var j=c.index+c.addedCount; j<childObservers.length; j++) childObservers[j].setIndex(j);
-						break;
-				}
-			}
-			
-			var patches = [];
-			for (var i=0; i<changes.length; i++) {
-				var c = changes[i];
-				switch (c.type) {
-					case "add":
-						patches.push({op: "add", path: path+"/"+c.name, value: c.object[c.name]});
-						break;
-					case "update":
-						patches.push({op: "replace", path: path+"/"+c.name, value: c.object[c.name]});
-						break;
-					case "delete":
-						patches.push({op: "remove", path: path+"/"+c.name});
-						break;
-					case "splice":
-						if (canSplice) patches.push({op: "splice", path: path+"/"+c.index, add: c.object.slice(c.index, c.index+c.addedCount), remove: c.removed.length});
-						else {
-							for (var j=0; j<Math.min(c.removed.length, c.addedCount); j++) patches.push({op: "replace", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
-							for (var j=c.removed.length; j<c.addedCount; j++) patches.push({op: "add", path: path+"/"+(c.index+j), value: c.object[c.index+j]});
-							for (var j=c.removed.length-1; j>=c.addedCount; j--) patches.push({op: "remove", path: path+"/"+(c.index+j)});
-						}
-						break;
-				}
-			}
-			callback(patches);
-		}
-		catch (err) {
-			console.log(err.stack);
-		}
-	}
-	count++;
-	return {
-		print: function() {
-			if (active) {
-				console.log(path);
-				if (childObservers instanceof Array) for (var i=0; i<childObservers.length; i++) childObservers[i] && childObservers[i].print();
-				else for (var p in childObservers) childObservers[p].print();
-			}
-		},
-		cancel: function() {
-			if (active) {
-				if (obj instanceof Array) {
-					Array.unobserve(obj, onChange);
-					for (var i=0; i<childObservers.length; i++) if (childObservers[i]) childObservers[i].cancel();
-				}
-				else {
-					Object.unobserve(obj, onChange);
-					for (var p in childObservers) childObservers[p].cancel();
-				}
-				active = false;
-				count--;
-			}
-		},
-		setIndex: function(index) {
-			path = path.substring(0, path.lastIndexOf("/")) + "/" + index;
-		}
-	};
+function observe(target) {
+	if (!(target instanceof Object) || target.$handler) return target;
+	if (target instanceof Array) return new Proxy(target, new ArrayHandler());
+	return new Proxy(target, new ObjectHandler());
 }
 
-exports.observe = observe;
-exports.count = function() {return count};
+observe.options = {
+	enableSplice: false,
+	excludeProperty: (target, prop) => false,
+};
+
+class Handler {
+	constructor() {
+		this.parents = [];
+		this.subscribers = new Set();
+	}
+	addParent(handler, prop) {
+		this.parents.push({handler, prop});
+	}
+	removeParent(handler, prop) {
+		const index = this.parents.findIndex(parent => parent.handler == handler && parent.prop == prop);
+		assert(index != -1);
+		this.parents.splice(index, 1);
+	}
+	onPatch(patch) {
+		for (const subscriber of this.subscribers) subscriber(patch);
+		for (const parent of this.parents) parent.handler.onPatch(this.copyPatch(patch, parent.prop + "/" + patch.path));
+	}
+	get(target, prop) {
+		switch (prop) {
+			case "$handler": return this;
+			case "$subscribe": return x => this.subscribers.add(x);
+			case "$unsubscribe": return x => this.subscribers.delete(x);
+			case "toJSON": return () => target.toJSON ? target.toJSON() : target;
+			default: return UNHANDLED;
+		}
+	}
+	copyPatch(patch, newPath) {
+		switch (patch.op) {
+			case "remove": return {op: patch.op, path: newPath};
+			case "splice": return {op: patch.op, path: newPath, remove: patch.remove, add: patch.add};
+			default: return {op: patch.op, path: newPath, value: patch.value};
+		}
+	}
+}
+
+class ObjectHandler extends Handler {
+	get(target, prop) {
+		const result = super.get(target, prop);
+		if (result != UNHANDLED) return result;
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (target[prop] instanceof Object && !target[prop].$handler) {
+				target[prop] = observe(target[prop]);
+				target[prop].$handler.addParent(this, prop);
+			}
+		}
+		return target[prop];
+	}
+	set(target, prop, value) {
+		if (target[prop] === value) return true;
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
+			target[prop] = value;
+			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.addParent(this, prop);
+			this.onPatch({op: "add", path: prop, value});
+		}
+		else {
+			target[prop] = value;
+		}
+		return true;
+	}
+	deleteProperty(target, prop) {
+		if (!target.hasOwnProperty(prop)) return true;
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
+			delete target[prop];
+			this.onPatch({op: "remove", path: prop});
+		}
+		else {
+			delete target[prop];
+		}
+		return true;
+	}
+}
+
+class ArrayHandler extends Handler {
+	get(target, prop, receiver) {
+		const result = super.get(target, prop);
+		if (result != UNHANDLED) return result;
+		switch (prop) {
+			case "copyWithin":
+			case "fill":
+			case "pop":
+			case "push":
+			case "reverse":
+			case "shift":
+			case "sort":
+			case "splice":
+			case "unshift":
+				return (...args) => this[prop](receiver, target, ...args);
+		}
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (target[prop] instanceof Object && !target[prop].$handler) {
+				target[prop] = observe(target[prop]);
+				target[prop].$handler.addParent(this, prop);
+			}
+		}
+		return target[prop];
+	}
+	set(target, prop, value) {
+		if (target[prop] === value) return true;
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (/^\d+$/.test(prop)) {
+				if (prop < target.length) {
+					const start = Number(prop);
+					this.beforeUpdate(target, start, start+1);
+					target[prop] = value;
+					this.afterUpdate(target, start, start+1);
+					this.generatePatches(target, start, 1, 1);
+				}
+				else {
+					const start = target.length;
+					target[prop] = value;
+					this.afterUpdate(target, start, target.length);
+					this.generatePatches(target, start, 0, target.length-start);
+				}
+			}
+			else {
+				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
+				target[prop] = value;
+				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.addParent(this, prop);
+				this.onPatch({op: "add", path: prop, value});
+			}
+		}
+		else {
+			target[prop] = value;
+		}
+		return true;
+	}
+	deleteProperty(target, prop) {
+		if (!target.hasOwnProperty(prop)) return true;
+		if (!observe.options.excludeProperty(target, prop)) {
+			if (/^\d+$/.test(prop)) {
+				const start = Number(prop);
+				this.beforeUpdate(target, start, start+1);
+				delete target[prop];
+				this.generatePatches(target, start, 1, 1);
+			}
+			else {
+				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
+				delete target[prop];
+				this.onPatch({op: "remove", path: prop});
+			}
+		}
+		else {
+			delete target[prop];
+		}
+		return true;
+	}
+	copyWithin(receiver, arr, start, sourceStart, sourceEnd) {
+		if (start == null) start = 0;
+		else if (start < 0) start = Math.max(start+arr.length, 0);
+		else start = Math.min(start, arr.length);
+		if (sourceStart == null) sourceStart = 0;
+		else if (sourceStart < 0) sourceStart = Math.max(sourceStart+arr.length, 0);
+		else sourceStart = Math.min(sourceStart, arr.length);
+		if (sourceEnd == null) sourceEnd = arr.length;
+		else if (sourceEnd < 0) sourceEnd = Math.max(sourceEnd+arr.length, 0);
+		else sourceEnd = Math.min(sourceEnd, arr.length);
+		if (start >= arr.length || sourceStart >= sourceEnd) return receiver;
+		const end = Math.min(start+(sourceEnd-sourceStart), arr.length);
+		this.beforeUpdate(arr, start, end);
+		arr.copyWithin(start, sourceStart, sourceEnd);
+		this.afterUpdate(arr, start, end);
+		this.generatePatches(arr, start, end-start, end-start);
+		return receiver;
+	}
+	fill(receiver, arr, value, start, end) {
+		if (start == null) start = 0;
+		else if (start < 0) start = Math.max(start+arr.length, 0);
+		else start = Math.min(start, arr.length);
+		if (end == null) end = arr.length;
+		else if (end < 0) end = Math.max(end+arr.length, 0);
+		else end = Math.min(end, arr.length);
+		if (start >= end) return receiver;
+		this.beforeUpdate(arr, start, end);
+		arr.fill(value, start, end);
+		this.afterUpdate(arr, start, end);
+		this.generatePatches(arr, start, end-start, end-start);
+		return receiver;
+	}
+	pop(receiver, arr) {
+		if (!arr.length) return undefined;
+		const start = arr.length-1;
+		const end = arr.length;
+		this.beforeUpdate(arr, start, end);
+		const result = arr.pop();
+		this.generatePatches(arr, start, 1, 0);
+		return result;
+	}
+	push(receiver, arr, ...values) {
+		const start = arr.length;
+		const end = arr.length+values.length;
+		const result = arr.push(...values);
+		this.afterUpdate(arr, start, end);
+		this.generatePatches(arr, start, 0, values.length);
+		return result;
+	}
+	reverse(receiver, arr) {
+		this.beforeUpdate(arr, 0, arr.length);
+		arr.reverse();
+		this.afterUpdate(arr, 0, arr.length);
+		this.generatePatches(arr, 0, arr.length, arr.length);
+		return receiver;
+	}
+	shift(receiver, arr) {
+		if (!arr.length) return undefined;
+		this.beforeUpdate(arr, 0, arr.length);
+		const result = arr.shift();
+		this.afterUpdate(arr, 0, arr.length);
+		this.generatePatches(arr, 0, 1, 0);
+		return result;
+	}
+	sort(receiver, arr, ...args) {
+		this.beforeUpdate(arr, 0, arr.length);
+		arr.sort(...args);
+		this.afterUpdate(arr, 0, arr.length);
+		this.generatePatches(arr, 0, arr.length, arr.length);
+		return receiver;
+	}
+	splice(receiver, arr, start, deleteCount, ...add) {
+		if (start == null) start = 0;
+		else if (start < 0) start = Math.max(start+arr.length, 0);
+		else start = Math.min(start, arr.length);
+		if (deleteCount == null) deleteCount = arr.length-start;
+		else deleteCount = Math.min(Math.max(deleteCount, 0), arr.length-start);
+		this.beforeUpdate(arr, start, arr.length);
+		const result = arr.splice(start, deleteCount, ...add);
+		this.afterUpdate(arr, start, arr.length);
+		this.generatePatches(arr, start, deleteCount, add.length);
+		return result;
+	}
+	unshift(receiver, arr, ...values) {
+		this.beforeUpdate(arr, 0, arr.length);
+		const result = arr.unshift(...values);
+		this.afterUpdate(arr, 0, arr.length);
+		this.generatePatches(arr, 0, 0, values.length);
+		return result;
+	}
+	beforeUpdate(arr, start, end) {
+		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.removeParent(this, i);
+	}
+	afterUpdate(arr, start, end) {
+		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.addParent(this, i);
+	}
+	generatePatches(arr, index, removedCount, addedCount) {
+		if (removedCount == 0 && addedCount == 0) return;
+		if (observe.options.enableSplice) {
+			this.onPatch({op: "splice", path: String(index), remove: removedCount, add: arr.slice(index, index+addedCount)});
+		}
+		else {
+			for (let i=0; i<Math.min(removedCount, addedCount); i++) this.onPatch({op: "replace", path: String(index+i), value: arr[index+i]});
+			for (let i=removedCount; i<addedCount; i++) this.onPatch({op: "add", path: String(index+i), value: arr[index+i]});
+			for (let i=removedCount-1; i>=addedCount; i--) this.onPatch({op: "remove", path: String(index+i)});
+		}
+	}
+}
+
+module.exports = observe;
