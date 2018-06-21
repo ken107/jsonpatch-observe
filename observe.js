@@ -180,6 +180,7 @@ class ArrayHandler extends Handler {
 		else sourceEnd = Math.min(sourceEnd, arr.length);
 		if (start >= arr.length || sourceStart >= sourceEnd) return receiver;
 		const end = Math.min(start+(sourceEnd-sourceStart), arr.length);
+		for (let i=sourceStart; i<sourceEnd; i++) this.get(arr, String(i), receiver);
 		this.beforeUpdate(arr, start, end);
 		arr.copyWithin(start, sourceStart, sourceEnd);
 		this.afterUpdate(arr, start, end);
@@ -194,6 +195,7 @@ class ArrayHandler extends Handler {
 		else if (end < 0) end = Math.max(end+arr.length, 0);
 		else end = Math.min(end, arr.length);
 		if (start >= end) return receiver;
+		value = observe(value);
 		this.beforeUpdate(arr, start, end);
 		arr.fill(value, start, end);
 		this.afterUpdate(arr, start, end);
@@ -259,10 +261,10 @@ class ArrayHandler extends Handler {
 		return result;
 	}
 	beforeUpdate(arr, start, end) {
-		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.removeParent(this, i);
+		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.removeParent(this, String(i));
 	}
 	afterUpdate(arr, start, end) {
-		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.addParent(this, i);
+		for (let i=start; i<end; i++) if (arr[i] instanceof Object && arr[i].$handler) arr[i].$handler.addParent(this, String(i));
 	}
 	generatePatches(arr, index, removedCount, addedCount) {
 		if (removedCount == 0 && addedCount == 0) return;
