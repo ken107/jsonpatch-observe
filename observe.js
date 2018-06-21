@@ -35,7 +35,7 @@ class Handler {
 	}
 	onPatch(patch) {
 		for (const subscriber of this.subscribers) subscriber(patch);
-		for (const parent of this.parents) parent.handler.onPatch(this.copyPatch(patch, parent.prop + "/" + patch.path));
+		for (const parent of this.parents) parent.handler.onPatch(this.copyPatch(patch, "/"+parent.prop + patch.path));
 	}
 	get(target, prop) {
 		switch (prop) {
@@ -73,7 +73,7 @@ class ObjectHandler extends Handler {
 			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
 			target[prop] = value;
 			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.addParent(this, prop);
-			this.onPatch({op: "add", path: prop, value});
+			this.onPatch({op: "add", path: "/"+prop, value});
 		}
 		else {
 			target[prop] = value;
@@ -85,7 +85,7 @@ class ObjectHandler extends Handler {
 		if (!observe.options.excludeProperty(target, prop)) {
 			if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
 			delete target[prop];
-			this.onPatch({op: "remove", path: prop});
+			this.onPatch({op: "remove", path: "/"+prop});
 		}
 		else {
 			delete target[prop];
@@ -140,7 +140,7 @@ class ArrayHandler extends Handler {
 				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
 				target[prop] = value;
 				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.addParent(this, prop);
-				this.onPatch({op: "add", path: prop, value});
+				this.onPatch({op: "add", path: "/"+prop, value});
 			}
 		}
 		else {
@@ -160,7 +160,7 @@ class ArrayHandler extends Handler {
 			else {
 				if (target[prop] instanceof Object && target[prop].$handler) target[prop].$handler.removeParent(this, prop);
 				delete target[prop];
-				this.onPatch({op: "remove", path: prop});
+				this.onPatch({op: "remove", path: "/"+prop});
 			}
 		}
 		else {
@@ -267,12 +267,12 @@ class ArrayHandler extends Handler {
 	generatePatches(arr, index, removedCount, addedCount) {
 		if (removedCount == 0 && addedCount == 0) return;
 		if (observe.options.enableSplice) {
-			this.onPatch({op: "splice", path: String(index), remove: removedCount, add: arr.slice(index, index+addedCount)});
+			this.onPatch({op: "splice", path: "/"+index, remove: removedCount, add: arr.slice(index, index+addedCount)});
 		}
 		else {
-			for (let i=0; i<Math.min(removedCount, addedCount); i++) this.onPatch({op: "replace", path: String(index+i), value: arr[index+i]});
-			for (let i=removedCount; i<addedCount; i++) this.onPatch({op: "add", path: String(index+i), value: arr[index+i]});
-			for (let i=removedCount-1; i>=addedCount; i--) this.onPatch({op: "remove", path: String(index+i)});
+			for (let i=0; i<Math.min(removedCount, addedCount); i++) this.onPatch({op: "replace", path: "/"+(index+i), value: arr[index+i]});
+			for (let i=removedCount; i<addedCount; i++) this.onPatch({op: "add", path: "/"+(index+i), value: arr[index+i]});
+			for (let i=removedCount-1; i>=addedCount; i--) this.onPatch({op: "remove", path: "/"+(index+i)});
 		}
 	}
 }
