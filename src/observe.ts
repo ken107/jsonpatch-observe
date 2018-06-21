@@ -19,7 +19,7 @@ export const options = {
 	excludeProperty: (target: any, prop: string) => false,
 };
 
-interface Patch {
+type Patch = {
 	op: string;
 	path: string;
 	value?: any;
@@ -29,7 +29,7 @@ interface Patch {
 
 type Subscriber = (patch: Patch) => void;
 
-interface Parent {
+type Parent = {
 	handler: Handler;
 	prop: string;
 }
