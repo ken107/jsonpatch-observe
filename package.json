@@ -1,6 +1,6 @@
 {
   "name": "jsonpatch-observe",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Observe objects recursively and generate JSON patches",
   "keywords": [
     "jsonpatch",
@@ -20,16 +20,20 @@
     "url": "https://github.com/ken107/jsonpatch-observe/issues"
   },
   "files": [
-    "observe.js"
+    "dist/observe.js",
+    "dist/observe.d.ts"
   ],
   "scripts": {
+    "build": "tsc",
     "test": "jest"
   },
-  "main": "./observe.js",
+  "main": "dist/observe.js",
+  "types": "dist/observe.d.ts",
   "engines": {
-    "node": ">=0.11.13"
+    "node": ">=6.4.0"
   },
   "devDependencies": {
+    "@types/jest": "^23.1.1",
     "jest": "^23.1.0"
   }
 }

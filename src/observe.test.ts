@@ -1,8 +1,10 @@
-const observe = require("./observe.js");
-observe.options.enableSplice = true;
+import { observe, options } from "./observe.js";
+options.enableSplice = true;
 
 describe("observe object", () => {
-  let x, cb, tmp;
+  let x: any;
+  let cb: jest.Mock;
+  let tmp: any;
 
   beforeEach(() => {
     x = observe({a:{b:1}});
@@ -30,7 +32,9 @@ describe("observe object", () => {
 
 
 describe("observe array", () => {
-  let x, cb, tmp;
+  let x: any;
+  let cb: jest.Mock;
+  let tmp: any;
 
   beforeEach(() => {
     x = observe({a:[1,2,3,{b:4},5]});
@@ -152,7 +156,7 @@ describe("observe array", () => {
   })
 
   test("sort", () => {
-    const rv = x.a.sort((a,b) => {
+    const rv = x.a.sort((a: any, b: any) => {
       if (a instanceof Object) return -1;
       if (b instanceof Object) return 1;
       return a < b ? 1 : (a > b ? -1 : 0);
