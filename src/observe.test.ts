@@ -1,10 +1,19 @@
-import { observe, options } from "./observe.js";
+import { observe, options, Subscriber } from "./observe.js";
 options.enableSplice = true;
 
+type Observable = {
+  $subscribe?: (x: Subscriber) => void,
+  $handler?: {
+    parents: Array<any>
+  }
+};
+
+type TestObject = Observable & {c: number};
+
 describe("observe object", () => {
-  let x: any;
+  let x: Observable & {a: TestObject};
   let cb: jest.Mock;
-  let tmp: any;
+  let tmp: TestObject;
 
   beforeEach(() => {
     x = observe({a:{b:1}});
@@ -32,9 +41,11 @@ describe("observe object", () => {
 
 
 describe("observe array", () => {
-  let x: any;
+  let x: Observable & {
+    a: Observable & Array<any> & {hello: string}
+  };
   let cb: jest.Mock;
-  let tmp: any;
+  let tmp: TestObject;
 
   beforeEach(() => {
     x = observe({a:[1,2,3,{b:4},5]});
@@ -78,7 +89,7 @@ describe("observe array", () => {
   })
 
   test("copyWithin", () => {
-    const rv = x.a.copyWithin(3);
+    const rv = x.a.copyWithin(3,0);
     expect(tmp.$handler.parents).toEqual([]);
     expect(rv).toBe(x.a);
     expect(x).toEqual({a:[1,2,3,1,2]});

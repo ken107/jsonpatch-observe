@@ -68,7 +68,7 @@ describe("observe array", () => {
         expect(cb.mock.calls[1]).toEqual([{ op: "remove", path: "/a/hello" }]);
     });
     test("copyWithin", () => {
-        const rv = x.a.copyWithin(3);
+        const rv = x.a.copyWithin(3, 0);
         expect(tmp.$handler.parents).toEqual([]);
         expect(rv).toBe(x.a);
         expect(x).toEqual({ a: [1, 2, 3, 1, 2] });
