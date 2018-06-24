@@ -1,8 +1,8 @@
-export declare function observe(target: any): any;
 export declare const options: {
     enableSplice: boolean;
     excludeProperty: (target: any, prop: string) => boolean;
 };
+export declare function observe(obj: any): any;
 export interface Patch {
     op: string;
     path: string;
