@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ken107/jsonpatch-observe.svg?branch=master)](https://travis-ci.org/ken107/jsonpatch-observe)
+
 Observe an object tree for changes and generate JSON Patches ([RFC 6902](https://tools.ietf.org/html/rfc6902)).  Uses [Harmony Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy), available in NodeJS version 6.4 and above.
 
 
