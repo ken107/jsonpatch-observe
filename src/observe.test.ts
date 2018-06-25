@@ -1,6 +1,6 @@
-import { observe, options, Subscriber } from "./observe.js";
-options.enableSplice = true;
-options.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
+import { observe, config, Subscriber } from "./observe.js";
+config.enableSplice = true;
+config.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
 
 type Observable = {
   $subscribe?: (x: Subscriber) => void,

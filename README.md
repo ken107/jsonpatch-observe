@@ -5,7 +5,7 @@ Observe an object tree for changes and generate JSON Patches ([RFC 6902](https:/
 
 ### Usage
 ```javascript
-const observe = require("jsonpatch-observe");
+const {observe} = require("jsonpatch-observe");
 
 let observable = observe({});
 observable.$subscribe(patch => console.log(patch));
@@ -20,7 +20,7 @@ Note that the properties of an Observable are also Observables.  This is how it'
 ### Unobserved Properties
 You can exclude certain properties from `observe` as follows:
 ```javascript
-require("jsonpatch-observe").options.excludeProperty = function(obj, prop) {
+require("jsonpatch-observe").config.excludeProperty = function(obj, prop) {
 	//return true to exclude the property
 }
 ```
@@ -31,7 +31,7 @@ The JSONPatch standard does not specify a "splice" operation.  Without splice, A
 
 This module supports generating the splice patch.  Enable it as follows:
 ```javascript
-require("jsonpatch-observe").options.enableSplice = true;
+require("jsonpatch-observe").config.enableSplice = true;
 ```
 
 The splice patch has the following format:

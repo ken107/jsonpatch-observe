@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const observe_js_1 = require("./observe.js");
-observe_js_1.options.enableSplice = true;
-observe_js_1.options.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
+observe_js_1.config.enableSplice = true;
+observe_js_1.config.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
 describe("observe object", () => {
     let x;
     let cb;

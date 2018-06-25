@@ -8,21 +8,27 @@
 "use strict";
 const UNHANDLED = new Object();
 
-export const options = {
+export const config = {
 	enableSplice: false,
 	excludeProperty: (target: any, prop: string) => false,
 };
 
-export function observe(obj: any) {
+export interface Options {
+	deep: boolean;
+}
+
+export function observe(obj: any, opts?: Options) {
 	let observable = obj.$observable;
 	if (!observable) {
 		const handler = obj instanceof Array ? new ArrayHandler() : new ObjectHandler();
 		observable = new Proxy(obj, handler);
 		Object.defineProperty(obj, "$observable", {value: observable});
+		if (opts && opts.deep) {
 		for (const prop in obj)
-			if (!options.excludeProperty(obj, prop))
+			if (!config.excludeProperty(obj, prop))
 				if (obj[prop] instanceof Object)
 					observe(obj[prop]).$handler.addParent(handler, prop);
+		}
 	}
 	return observable;
 }
@@ -83,7 +89,7 @@ class ObjectHandler extends Handler {
 			let observable = target[prop].$observable;
 			if (!observable) {
 				observable = observe(target[prop]);
-				if (!options.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
+				if (!config.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
 			}
 			return observable;
 		}
@@ -91,7 +97,7 @@ class ObjectHandler extends Handler {
 	}
 	set(target: any, prop: string, value: any): boolean {
 		if (target[prop] === value) return true;
-		if (!options.excludeProperty(target, prop)) {
+		if (!config.excludeProperty(target, prop)) {
 			if (target[prop] instanceof Object) {
 				const observable = target[prop].$observable;
 				if (observable) observable.$handler.removeParent(this, prop);
@@ -99,7 +105,7 @@ class ObjectHandler extends Handler {
 			target[prop] = value;
 			if (target[prop] instanceof Object) {
 				let observable = target[prop].$observable;
-				if (!observable) observable = observe(target[prop]);
+				if (!observable) observable = observe(target[prop], {deep: true});
 				observable.$handler.addParent(this, prop);
 			}
 			this.onPatch({op: "add", path: "/"+prop, value});
@@ -111,7 +117,7 @@ class ObjectHandler extends Handler {
 	}
 	deleteProperty(target: any, prop: string): boolean {
 		if (!target.hasOwnProperty(prop)) return true;
-		if (!options.excludeProperty(target, prop)) {
+		if (!config.excludeProperty(target, prop)) {
 			if (target[prop] instanceof Object) {
 				const observable = target[prop].$observable;
 				if (observable) observable.$handler.removeParent(this, prop);
@@ -145,7 +151,7 @@ class ArrayHandler extends Handler {
 			let observable = target[prop].$observable;
 			if (!observable) {
 				observable = observe(target[prop]);
-				if (!options.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
+				if (!config.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
 			}
 			return observable;
 		}
@@ -153,7 +159,7 @@ class ArrayHandler extends Handler {
 	}
 	set(target: any, prop: string, value: any): boolean {
 		if (target[prop] === value) return true;
-		if (!options.excludeProperty(target, prop)) {
+		if (!config.excludeProperty(target, prop)) {
 			if (/^\d+$/.test(prop)) {
 				if (prop < target.length) {
 					const start = Number(prop);
@@ -177,7 +183,7 @@ class ArrayHandler extends Handler {
 				target[prop] = value;
 				if (target[prop] instanceof Object) {
 					let observable = target[prop].$observable;
-					if (!observable) observable = observe(target[prop]);
+					if (!observable) observable = observe(target[prop], {deep: true});
 					observable.$handler.addParent(this, prop);
 				}
 				this.onPatch({op: "add", path: "/"+prop, value});
@@ -190,7 +196,7 @@ class ArrayHandler extends Handler {
 	}
 	deleteProperty(target: any, prop: string): boolean {
 		if (!target.hasOwnProperty(prop)) return true;
-		if (!options.excludeProperty(target, prop)) {
+		if (!config.excludeProperty(target, prop)) {
 			if (/^\d+$/.test(prop)) {
 				const start = Number(prop);
 				this.beforeUpdate(target, start, start+1);
@@ -312,13 +318,13 @@ class ArrayHandler extends Handler {
 		for (let i=start; i<end; i++)
 			if (arr[i] instanceof Object) {
 				let observable = arr[i].$observable;
-				if (!observable) observable = observe(arr[i]);
+				if (!observable) observable = observe(arr[i], {deep: true});
 				observable.$handler.addParent(this, String(i));
 			}
 	}
 	generatePatches(arr: Array<any>, index: number, removedCount: number, addedCount: number) {
 		if (removedCount == 0 && addedCount == 0) return;
-		if (options.enableSplice) {
+		if (config.enableSplice) {
 			this.onPatch({op: "splice", path: "/"+index, remove: removedCount, add: arr.slice(index, index+addedCount)});
 		}
 		else {

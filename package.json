@@ -1,6 +1,6 @@
 {
   "name": "jsonpatch-observe",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Observe objects recursively and generate JSON patches",
   "keywords": [
     "jsonpatch",
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@types/jest": "^23.1.1",
-    "jest": "^23.1.0"
+    "jest": "^23.1.0",
+    "typescript": "^2.9.2"
   }
 }
