@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const observe_js_1 = require("./observe.js");
 observe_js_1.options.enableSplice = true;
+observe_js_1.options.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
 describe("observe object", () => {
     let x;
     let cb;
@@ -25,6 +26,27 @@ describe("observe object", () => {
         expect(x).toEqual({});
         expect(cb.mock.calls[0]).toEqual([{ op: "remove", path: "/a" }]);
         expect(cb.mock.calls.length).toBe(1);
+    });
+    test("shared object reference", () => {
+        const y = observe_js_1.observe({});
+        y.$subscribe(cb);
+        y.a = y.b = y._c = { d: 1 };
+        expect(cb.mock.calls[0]).toEqual([{ op: "add", path: "/b", value: { d: 1 } }]);
+        expect(cb.mock.calls[1]).toEqual([{ op: "add", path: "/a", value: { d: 1 } }]);
+        y.a.d = 2;
+        expect(cb.mock.calls[2]).toEqual([{ op: "add", path: "/b/d", value: 2 }]);
+        expect(cb.mock.calls[3]).toEqual([{ op: "add", path: "/a/d", value: 2 }]);
+        expect(cb.mock.calls.length).toBe(4);
+        const t = { c: 1 };
+        y.a = { d: t };
+        expect(cb.mock.calls[4]).toEqual([{ op: "add", path: "/a", value: { d: { c: 1 } } }]);
+        y.b = { d: t };
+        expect(cb.mock.calls[5]).toEqual([{ op: "add", path: "/b", value: { d: { c: 1 } } }]);
+        y._c = { d: t };
+        y._c.d.c = 3;
+        expect(cb.mock.calls[6]).toEqual([{ op: "add", path: "/a/d/c", value: 3 }]);
+        expect(cb.mock.calls[7]).toEqual([{ op: "add", path: "/b/d/c", value: 3 }]);
+        expect(cb.mock.calls.length).toBe(8);
     });
 });
 describe("observe array", () => {
