@@ -13,22 +13,26 @@ export const config = {
 	excludeProperty: (target: any, prop: string) => false,
 };
 
-export interface Options {
-	deep: boolean;
-}
-
-export function observe(obj: any, opts?: Options) {
+export function observe(obj: any) {
 	let observable = obj.$observable;
 	if (!observable) {
 		const handler = obj instanceof Array ? new ArrayHandler() : new ObjectHandler();
 		observable = new Proxy(obj, handler);
 		Object.defineProperty(obj, "$observable", {value: observable});
-		if (opts && opts.deep) {
 		for (const prop in obj)
 			if (!config.excludeProperty(obj, prop))
 				if (obj[prop] instanceof Object)
 					observe(obj[prop]).$handler.addParent(handler, prop);
-		}
+	}
+	return observable;
+}
+
+function observeShallow(obj: any) {
+	let observable = obj.$observable;
+	if (!observable) {
+		const handler = obj instanceof Array ? new ArrayHandler() : new ObjectHandler();
+		observable = new Proxy(obj, handler);
+		Object.defineProperty(obj, "$observable", {value: observable});
 	}
 	return observable;
 }
@@ -81,6 +85,14 @@ class Handler {
 	}
 }
 
+/*
+RULE: always ensure entire tree is observed
+- Deep observe any new objects added to the tree via set-property or array ops
+- Don't need to worry about objects copied during array ops since they're already observed
+- get-property must always return an observable, even for excluded properties, to ensure
+changes to the returned object are captured; but here we only require shallow observe
+*/
+
 class ObjectHandler extends Handler {
 	get(target: any, prop: string, receiver: any): any {
 		const result = super.get(target, prop, receiver);
@@ -88,7 +100,7 @@ class ObjectHandler extends Handler {
 		if (target[prop] instanceof Object) {
 			let observable = target[prop].$observable;
 			if (!observable) {
-				observable = observe(target[prop]);
+				observable = observeShallow(target[prop]);
 				if (!config.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
 			}
 			return observable;
@@ -105,7 +117,7 @@ class ObjectHandler extends Handler {
 			target[prop] = value;
 			if (target[prop] instanceof Object) {
 				let observable = target[prop].$observable;
-				if (!observable) observable = observe(target[prop], {deep: true});
+				if (!observable) observable = observe(target[prop]);
 				observable.$handler.addParent(this, prop);
 			}
 			this.onPatch({op: "add", path: "/"+prop, value});
@@ -150,7 +162,7 @@ class ArrayHandler extends Handler {
 		if (target[prop] instanceof Object) {
 			let observable = target[prop].$observable;
 			if (!observable) {
-				observable = observe(target[prop]);
+				observable = observeShallow(target[prop]);
 				if (!config.excludeProperty(target, prop)) observable.$handler.addParent(this, prop);
 			}
 			return observable;
@@ -183,7 +195,7 @@ class ArrayHandler extends Handler {
 				target[prop] = value;
 				if (target[prop] instanceof Object) {
 					let observable = target[prop].$observable;
-					if (!observable) observable = observe(target[prop], {deep: true});
+					if (!observable) observable = observe(target[prop]);
 					observable.$handler.addParent(this, prop);
 				}
 				this.onPatch({op: "add", path: "/"+prop, value});
@@ -318,7 +330,7 @@ class ArrayHandler extends Handler {
 		for (let i=start; i<end; i++)
 			if (arr[i] instanceof Object) {
 				let observable = arr[i].$observable;
-				if (!observable) observable = observe(arr[i], {deep: true});
+				if (!observable) observable = observe(arr[i]);
 				observable.$handler.addParent(this, String(i));
 			}
 	}

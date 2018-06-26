@@ -1,6 +1,6 @@
 {
   "name": "jsonpatch-observe",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Observe objects recursively and generate JSON patches",
   "keywords": [
     "jsonpatch",
@@ -24,7 +24,7 @@
     "dist/observe.d.ts"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --newLine lf",
     "test": "jest"
   },
   "main": "dist/observe.js",

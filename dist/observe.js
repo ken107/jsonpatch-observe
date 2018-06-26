@@ -12,22 +12,29 @@ exports.config = {
     enableSplice: false,
     excludeProperty: (target, prop) => false,
 };
-function observe(obj, opts) {
+function observe(obj) {
     let observable = obj.$observable;
     if (!observable) {
         const handler = obj instanceof Array ? new ArrayHandler() : new ObjectHandler();
         observable = new Proxy(obj, handler);
         Object.defineProperty(obj, "$observable", { value: observable });
-        if (opts && opts.deep) {
-            for (const prop in obj)
-                if (!exports.config.excludeProperty(obj, prop))
-                    if (obj[prop] instanceof Object)
-                        observe(obj[prop]).$handler.addParent(handler, prop);
-        }
+        for (const prop in obj)
+            if (!exports.config.excludeProperty(obj, prop))
+                if (obj[prop] instanceof Object)
+                    observe(obj[prop]).$handler.addParent(handler, prop);
     }
     return observable;
 }
 exports.observe = observe;
+function observeShallow(obj) {
+    let observable = obj.$observable;
+    if (!observable) {
+        const handler = obj instanceof Array ? new ArrayHandler() : new ObjectHandler();
+        observable = new Proxy(obj, handler);
+        Object.defineProperty(obj, "$observable", { value: observable });
+    }
+    return observable;
+}
 class Handler {
     constructor() {
         this.parents = [];
@@ -67,6 +74,13 @@ class Handler {
         }
     }
 }
+/*
+RULE: always ensure entire tree is observed
+- Deep observe any new objects added to the tree via set-property or array ops
+- Don't need to worry about objects copied during array ops since they're already observed
+- get-property must always return an observable, even for excluded properties, to ensure
+changes to the returned object are captured; but here we only require shallow observe
+*/
 class ObjectHandler extends Handler {
     get(target, prop, receiver) {
         const result = super.get(target, prop, receiver);
@@ -75,7 +89,7 @@ class ObjectHandler extends Handler {
         if (target[prop] instanceof Object) {
             let observable = target[prop].$observable;
             if (!observable) {
-                observable = observe(target[prop]);
+                observable = observeShallow(target[prop]);
                 if (!exports.config.excludeProperty(target, prop))
                     observable.$handler.addParent(this, prop);
             }
@@ -96,7 +110,7 @@ class ObjectHandler extends Handler {
             if (target[prop] instanceof Object) {
                 let observable = target[prop].$observable;
                 if (!observable)
-                    observable = observe(target[prop], { deep: true });
+                    observable = observe(target[prop]);
                 observable.$handler.addParent(this, prop);
             }
             this.onPatch({ op: "add", path: "/" + prop, value });
@@ -143,7 +157,7 @@ class ArrayHandler extends Handler {
         if (target[prop] instanceof Object) {
             let observable = target[prop].$observable;
             if (!observable) {
-                observable = observe(target[prop]);
+                observable = observeShallow(target[prop]);
                 if (!exports.config.excludeProperty(target, prop))
                     observable.$handler.addParent(this, prop);
             }
@@ -180,7 +194,7 @@ class ArrayHandler extends Handler {
                 if (target[prop] instanceof Object) {
                     let observable = target[prop].$observable;
                     if (!observable)
-                        observable = observe(target[prop], { deep: true });
+                        observable = observe(target[prop]);
                     observable.$handler.addParent(this, prop);
                 }
                 this.onPatch({ op: "add", path: "/" + prop, value });
@@ -343,7 +357,7 @@ class ArrayHandler extends Handler {
             if (arr[i] instanceof Object) {
                 let observable = arr[i].$observable;
                 if (!observable)
-                    observable = observe(arr[i], { deep: true });
+                    observable = observe(arr[i]);
                 observable.$handler.addParent(this, String(i));
             }
     }
