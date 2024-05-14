@@ -1,4 +1,4 @@
-import { observe, config, Subscriber } from "./observe.js";
+import { observe, config, Subscriber } from "./observe";
 config.enableSplice = true;
 config.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
 
@@ -12,20 +12,20 @@ type Observable = {
 type TestObject = Observable & {c: number};
 
 describe("observe object", () => {
-  let x: Observable & {a: TestObject};
+  let x: Observable & {a?: TestObject};
   let cb: jest.Mock;
   let tmp: TestObject;
 
   beforeEach(() => {
     x = observe({a:{b:1}});
     cb = jest.fn();
-    x.$subscribe(cb);
-    tmp = x.a;
+    x.$subscribe!(cb);
+    tmp = x.a!;
   })
 
   test("set object property", () => {
     x.a = {c:2};
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(x).toEqual({a:{c:2}});
     expect(cb.mock.calls.length).toBe(1);
     expect(cb.mock.calls[0]).toEqual([{op:"add", path:"/a", value:{c:2}}]);
@@ -33,7 +33,7 @@ describe("observe object", () => {
 
   test("delete object property", () => {
     delete x.a;
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(x).toEqual({});
     expect(cb.mock.calls[0]).toEqual([{op:"remove", path:"/a"}]);
     expect(cb.mock.calls.length).toBe(1);
@@ -66,7 +66,7 @@ describe("observe object", () => {
 
 describe("observe array", () => {
   let x: Observable & {
-    a: Observable & Array<any> & {hello: string}
+    a: Observable & Array<any> & {hello?: string}
   };
   let cb: jest.Mock;
   let tmp: TestObject;
@@ -74,13 +74,13 @@ describe("observe array", () => {
   beforeEach(() => {
     x = observe({a:[1,2,3,{b:4},5]});
     cb = jest.fn();
-    x.$subscribe(cb);
+    x.$subscribe!(cb);
     tmp = x.a[3];
   })
 
   test("set array element", () => {
     x.a[3] = {c:9};
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(x).toEqual({a:[1,2,3,{c:9},5]});
     expect(cb.mock.calls.length).toBe(1);
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/3", remove:1, add:[{c:9}]}]);
@@ -88,7 +88,7 @@ describe("observe array", () => {
 
   test("set array element beyond boundary", () => {
     x.a[7] = 9;
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"3"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"3"}]);
     expect(x).toEqual({a:[1,2,3,{b:4},5,undefined,undefined,9]});
     expect(cb.mock.calls.length).toBe(1);
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/5", remove:0, add:[undefined,undefined,9]}]);
@@ -96,7 +96,7 @@ describe("observe array", () => {
 
   test("delete array element", () => {
     delete x.a[3];
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(x).toEqual({a:[1,2,3,undefined,5]});
     expect(cb.mock.calls.length).toBe(1);
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/3", remove:1, add:[undefined]}]);
@@ -114,7 +114,7 @@ describe("observe array", () => {
 
   test("copyWithin", () => {
     const rv = x.a.copyWithin(3,0);
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(rv).toBe(x.a);
     expect(x).toEqual({a:[1,2,3,1,2]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/3", remove:2, add:[1,2]}]);
@@ -135,12 +135,12 @@ describe("observe array", () => {
 
   test("fill", () => {
     let rv = x.a.fill(9, 1, 3);
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"3"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"3"}]);
     expect(rv).toBe(x.a);
     expect(x).toEqual({a:[1,9,9,{b:4},5]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/1", remove:2, add:[9,9]}]);
     rv = x.a.fill({c:8}, -3);
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(rv).toBe(x.a);
     //expect(x).toEqual({a:[1,9,{c:8},{c:8},{c:8}]});
     expect(cb.mock.calls[1]).toEqual([{op:"splice", path:"/a/2", remove:3, add:[{c:8},{c:8},{c:8}]}]);
@@ -174,7 +174,7 @@ describe("observe array", () => {
 
   test("reverse", () => {
     const rv = x.a.reverse();
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"1"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"1"}]);
     expect(rv).toBe(x.a);
     expect(x).toEqual({a:[5,{b:4},3,2,1]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/0", remove:5, add:[5,{b:4},3,2,1]}]);
@@ -183,7 +183,7 @@ describe("observe array", () => {
 
   test("shift", () => {
     const rv = x.a.shift();
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"2"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"2"}]);
     expect(rv).toBe(1);
     expect(x).toEqual({a:[2,3,{b:4},5]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/0", remove:1, add:[]}]);
@@ -196,7 +196,7 @@ describe("observe array", () => {
       if (b instanceof Object) return 1;
       return a < b ? 1 : (a > b ? -1 : 0);
     });
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"0"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"0"}]);
     expect(rv).toBe(x.a);
     expect(x).toEqual({a:[{b:4},5,3,2,1]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/0", remove:5, add:[{b:4},5,3,2,1]}]);
@@ -205,7 +205,7 @@ describe("observe array", () => {
 
   test("splice", () => {
     const rv = x.a.splice(1,3,7,8,9);
-    expect(tmp.$handler.parents).toEqual([]);
+    expect(tmp.$handler!.parents).toEqual([]);
     expect(rv).toEqual([2,3,{b:4}]);
     expect(x).toEqual({a:[1,7,8,9,5]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/1", remove:3, add:[7,8,9]}]);
@@ -222,7 +222,7 @@ describe("observe array", () => {
 
   test("unshift", () => {
     const rv = x.a.unshift(8,9);
-    expect(tmp.$handler.parents).toEqual([{handler:x.a.$handler, prop:"5"}]);
+    expect(tmp.$handler!.parents).toEqual([{handler:x.a.$handler, prop:"5"}]);
     expect(rv).toEqual(7);
     expect(x).toEqual({a:[8,9,1,2,3,{b:4},5]});
     expect(cb.mock.calls[0]).toEqual([{op:"splice", path:"/a/0", remove:0, add:[8,9]}]);

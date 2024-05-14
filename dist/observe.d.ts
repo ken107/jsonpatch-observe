@@ -10,4 +10,4 @@ export interface Patch {
     remove?: number;
     add?: Array<any>;
 }
-export declare type Subscriber = (patch: Patch) => void;
+export type Subscriber = (patch: Patch) => void;

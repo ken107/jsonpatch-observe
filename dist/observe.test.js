@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const observe_js_1 = require("./observe.js");
-observe_js_1.config.enableSplice = true;
-observe_js_1.config.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
+const observe_1 = require("./observe");
+observe_1.config.enableSplice = true;
+observe_1.config.excludeProperty = (target, prop) => typeof prop == "string" && prop.startsWith("_");
 describe("observe object", () => {
     let x;
     let cb;
     let tmp;
     beforeEach(() => {
-        x = observe_js_1.observe({ a: { b: 1 } });
+        x = (0, observe_1.observe)({ a: { b: 1 } });
         cb = jest.fn();
         x.$subscribe(cb);
         tmp = x.a;
@@ -28,7 +28,7 @@ describe("observe object", () => {
         expect(cb.mock.calls.length).toBe(1);
     });
     test("shared object reference", () => {
-        const y = observe_js_1.observe({});
+        const y = (0, observe_1.observe)({});
         y.$subscribe(cb);
         y.a = y.b = y._c = { d: 1 };
         expect(cb.mock.calls[0]).toEqual([{ op: "add", path: "/b", value: { d: 1 } }]);
@@ -54,7 +54,7 @@ describe("observe array", () => {
     let cb;
     let tmp;
     beforeEach(() => {
-        x = observe_js_1.observe({ a: [1, 2, 3, { b: 4 }, 5] });
+        x = (0, observe_1.observe)({ a: [1, 2, 3, { b: 4 }, 5] });
         cb = jest.fn();
         x.$subscribe(cb);
         tmp = x.a[3];

@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.observe = exports.config = void 0;
 /**
  * JSONPatch Observe
  * Copyright 2018, Hai Phan <hai.phan@gmail.com>
@@ -5,9 +8,6 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.observe = exports.config = void 0;
 const UNHANDLED = new Object();
 exports.config = {
     enableSplice: false,
