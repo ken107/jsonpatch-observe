@@ -25,19 +25,12 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "node dist/observe.test"
   },
   "main": "dist/observe.js",
   "types": "dist/observe.d.ts",
-  "engines": {
-    "node": ">=6.4.0"
-  },
-  "jest": {
-    "testRegex": "(\\.|/)test\\.js$"
-  },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "jest": "^29.7.0",
+    "@types/node": "^20.14.4",
     "typescript": "^5.4.5"
   }
 }
